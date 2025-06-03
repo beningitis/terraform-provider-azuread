@@ -460,31 +460,49 @@ func groupDataSourceRead(ctx context.Context, d *pluginsdk.ResourceData, meta in
 	includeTransitiveMembers := d.Get("include_transitive_members").(bool)
 	var members *[]string
 	if includeTransitiveMembers {
-		resp, err := transitiveMemberClient.ListTransitiveMembers(ctx, beta.GroupId(id), transitivememberBeta.DefaultListTransitiveMembersOperationOptions())
-		if err != nil {
-			return tf.ErrorDiagF(err, "Could not retrieve transitive group members for group with object ID: %q", d.Id())
-		}
-		if resp.Model != nil {
-			transitiveMembers := make([]string, 0)
-			for _, object := range *resp.Model {
-				transitiveMembers = append(transitiveMembers, pointer.From(object.DirectoryObject().Id))
+		nextLink := ""
+		for {
+			opts := transitivememberBeta.DefaultListTransitiveMembersOperationOptions()
+			if nextLink != "" {
+				opts.NextLink = &nextLink
 			}
-			members = &transitiveMembers
+			resp, err := transitiveMemberClient.ListTransitiveMembers(ctx, beta.GroupId(id, opts)
+			if err != nil {
+				return tf.ErrorDiagF(err, "Could not retrieve transitive group members for group with object ID: %q", d.Id())
+			}
+			if respo.Model != nil {
+				for _, object := range *resp.Model {
+					members = append(members, pointer.From(object.DirectoryObject().Id))
+				}
+			}
+			if respo.OdataNextLink == nil || *resp.OdataNextLink == "" {
+				break
+			}
+			nextLink = *resp.OdataNextLink
 		}
 	} else {
-		resp, err := memberClient.ListMembers(ctx, beta.GroupId(id), memberBeta.DefaultListMembersOperationOptions())
-		if err != nil {
-			return tf.ErrorDiagF(err, "Could not retrieve group members for group with object ID: %q", d.Id())
-		}
-		if resp.Model != nil {
-			directMembers := make([]string, 0)
-			for _, object := range *resp.Model {
-				directMembers = append(directMembers, pointer.From(object.DirectoryObject().Id))
+		nextLink := ""
+		for {
+			opts := memberBeta.DefaultListMembersOperationOptions()
+			if nextLink != "" {
+				opts.NextLink = &nextLink
 			}
-			members = &directMembers
+			resp, err := memberClient.ListMembers(ctx, beta.GroupId(id), opts)
+			if err != nil {
+				return tf.ErrorDiagF(err, "Could not retrieve group memebrs for group with object ID: %q", d.Id())
+			}
+			if resp.Model != nil {
+				for _, object := range *resp.Model {
+					members = append(members, pointer.From(object.DirectoryObject().id))
+				}
+			}
+			if resp.OdataNextLink == nil || *resp.OdataNextLink == "" {
+				break
+			}
+			nextLink = *resp.OdataNextLink
 		}
 	}
-	tf.Set(d, "members", members)
+	tf.set(d, "members", members)
 
 	resp, err := ownerClient.ListOwners(ctx, beta.GroupId(id), ownerBeta.DefaultListOwnersOperationOptions())
 	if err != nil {
