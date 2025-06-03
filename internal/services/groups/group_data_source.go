@@ -470,12 +470,12 @@ func groupDataSourceRead(ctx context.Context, d *pluginsdk.ResourceData, meta in
 			if err != nil {
 				return tf.ErrorDiagF(err, "Could not retrieve transitive group members for group with object ID: %q", d.Id())
 			}
-			if respo.Model != nil {
+			if resp.Model != nil {
 				for _, object := range *resp.Model {
 					members = append(members, pointer.From(object.DirectoryObject().Id))
 				}
 			}
-			if respo.OdataNextLink == nil || *resp.OdataNextLink == "" {
+			if resp.OdataNextLink == nil || *resp.OdataNextLink == "" {
 				break
 			}
 			nextLink = *resp.OdataNextLink
